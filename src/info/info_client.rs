@@ -4,8 +4,10 @@ use alloy::primitives::Address;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
+use uuid::Uuid;
 
 use crate::{
+    helpers::uuid_to_hex_string,
     info::{
         ActiveAssetDataResponse, CandlesSnapshotResponse, FundingHistoryResponse,
         L2SnapshotResponse, OpenOrdersResponse, OrderInfo, RecentTradesResponse, UserFillsResponse,
@@ -53,6 +55,11 @@ pub enum InfoRequest {
     OrderStatus {
         user: Address,
         oid: u64,
+    },
+    #[serde(rename = "orderStatus")]
+    OrderStatusByCloid {
+        user: Address,
+        oid: String,
     },
     Meta,
     MetaAndAssetCtxs,
@@ -299,6 +306,19 @@ impl InfoClient {
         oid: u64,
     ) -> Result<OrderStatusResponse> {
         let input = InfoRequest::OrderStatus { user: address, oid };
+        self.send_info_request(input).await
+    }
+
+    pub async fn query_order_by_cloid(
+        &self,
+        address: Address,
+        cloid: Uuid,
+    ) -> Result<OrderStatusResponse> {
+        let cloid = uuid_to_hex_string(cloid);
+        let input = InfoRequest::OrderStatusByCloid {
+            user: address,
+            oid: cloid,
+        };
         self.send_info_request(input).await
     }
 
