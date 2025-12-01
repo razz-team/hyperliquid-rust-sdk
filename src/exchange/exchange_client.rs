@@ -170,6 +170,22 @@ impl ExchangeClient {
         serde_json::from_str(output).map_err(|e| Error::JsonParse(e.to_string()))
     }
 
+    pub async fn post_action(
+        &self,
+        action: Actions,
+        wallet: Option<&PrivateKeySigner>,
+    ) -> Result<ExchangeResponseStatus> {
+        let wallet = wallet.unwrap_or(&self.wallet);
+
+        let timestamp = next_nonce();
+
+        let connection_id = action.hash(timestamp, self.vault_address)?;
+        let action = serde_json::to_value(&action).map_err(|e| Error::JsonParse(e.to_string()))?;
+        let is_mainnet = self.http_client.is_mainnet();
+        let signature = sign_l1_action(wallet, connection_id, is_mainnet)?;
+        self.post(action, signature, timestamp).await
+    }
+
     pub async fn enable_big_blocks(
         &self,
         using_big_blocks: bool,
