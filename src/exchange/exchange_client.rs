@@ -9,26 +9,15 @@ use reqwest::Client;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 
 use crate::{
-    exchange::{
-        actions::{
+    BaseUrl, BulkCancelCloid, ClassTransfer, Error, ExchangeResponseStatus, SpotSend, SpotUser, VaultTransfer, Withdraw3, exchange::{
+        BuilderInfo, ClientCancelRequest, ClientLimit, ClientOrder, ClientOrderRequest, actions::{
             ApproveAgent, ApproveBuilderFee, BulkCancel, BulkModify, BulkOrder, ClaimRewards,
             EvmUserModify, ScheduleCancel, SendAsset, SetReferrer, UpdateIsolatedMargin,
             UpdateLeverage, UsdSend,
-        },
-        cancel::{CancelRequest, CancelRequestCloid, ClientCancelRequestCloid},
-        modify::{ClientModifyRequest, ModifyRequest},
-        order::{MarketCloseParams, MarketOrderParams},
-        BuilderInfo, ClientCancelRequest, ClientLimit, ClientOrder, ClientOrderRequest,
-    },
-    helpers::{next_nonce, uuid_to_hex_string},
-    info::info_client::InfoClient,
-    meta::Meta,
-    prelude::*,
-    req::HttpClient,
-    signature::{sign_l1_action, sign_typed_data},
-    BaseUrl, BulkCancelCloid, ClassTransfer, Error, ExchangeResponseStatus, SpotSend, SpotUser,
-    VaultTransfer, Withdraw3,
+        }, cancel::{CancelRequest, CancelRequestCloid, ClientCancelRequestCloid}, ids::{OidOrCloid, OidOrCloidTrait}, modify::{ClientModifyRequest, ModifyRequest}, order::{MarketCloseParams, MarketOrderParams}
+    }, helpers::{next_nonce, uuid_to_hex_string}, info::info_client::InfoClient, meta::Meta, prelude::*, req::HttpClient, signature::{sign_l1_action, sign_typed_data}
 };
+
 
 #[derive(Debug)]
 pub struct ExchangeClient {
@@ -595,15 +584,19 @@ impl ExchangeClient {
 
     pub async fn modify(
         &self,
-        modify: ClientModifyRequest,
+        modify: ClientModifyRequest<impl OidOrCloidTrait>,
         wallet: Option<&PrivateKeySigner>,
     ) -> Result<ExchangeResponseStatus> {
-        self.bulk_modify(vec![modify], wallet).await
+
+        self.bulk_modify(vec![ClientModifyRequest {
+            oid: modify.oid.into(),
+            order: modify.order,
+        }], wallet).await
     }
 
     pub async fn bulk_modify(
         &self,
-        modifies: Vec<ClientModifyRequest>,
+        modifies: Vec<ClientModifyRequest<impl OidOrCloidTrait>>,
         wallet: Option<&PrivateKeySigner>,
     ) -> Result<ExchangeResponseStatus> {
         let wallet = wallet.unwrap_or(&self.wallet);
@@ -612,7 +605,7 @@ impl ExchangeClient {
         let mut transformed_modifies = Vec::new();
         for modify in modifies.into_iter() {
             transformed_modifies.push(ModifyRequest {
-                oid: modify.oid,
+                oid: modify.oid.into(),
                 order: modify.order.convert(&self.coin_to_asset)?,
             });
         }

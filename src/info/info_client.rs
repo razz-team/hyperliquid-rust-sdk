@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use alloy::primitives::Address;
+use log::info;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
@@ -17,8 +18,8 @@ use crate::{
     prelude::*,
     req::HttpClient,
     ws::{Subscription, WsManager},
-    BaseUrl, Error, Message, OrderStatusResponse, ReferralResponse, UserFeesResponse,
-    UserFundingResponse, UserTokenBalanceResponse,
+    BaseUrl, Error, Message, OidOrCloid, OidOrCloidTrait, OrderStatusResponse, ReferralResponse,
+    UserFeesResponse, UserFundingResponse, UserTokenBalanceResponse,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -54,12 +55,7 @@ pub enum InfoRequest {
     },
     OrderStatus {
         user: Address,
-        oid: u64,
-    },
-    #[serde(rename = "orderStatus")]
-    OrderStatusByCloid {
-        user: Address,
-        oid: String,
+        oid: OidOrCloid,
     },
     Meta,
     MetaAndAssetCtxs,
@@ -185,6 +181,8 @@ impl InfoClient {
         let data =
             serde_json::to_string(&info_request).map_err(|e| Error::JsonParse(e.to_string()))?;
 
+        info!("Input: {:?}", data);
+
         let return_data = self.http_client.post("/info", data).await?;
         serde_json::from_str(&return_data).map_err(|e| Error::JsonParse(e.to_string()))
     }
@@ -303,21 +301,11 @@ impl InfoClient {
     pub async fn query_order_by_oid(
         &self,
         address: Address,
-        oid: u64,
+        oid: impl OidOrCloidTrait,
     ) -> Result<OrderStatusResponse> {
-        let input = InfoRequest::OrderStatus { user: address, oid };
-        self.send_info_request(input).await
-    }
-
-    pub async fn query_order_by_cloid(
-        &self,
-        address: Address,
-        cloid: Uuid,
-    ) -> Result<OrderStatusResponse> {
-        let cloid = uuid_to_hex_string(cloid);
-        let input = InfoRequest::OrderStatusByCloid {
+        let input = InfoRequest::OrderStatus {
             user: address,
-            oid: cloid,
+            oid: oid.into(),
         };
         self.send_info_request(input).await
     }

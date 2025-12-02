@@ -5,6 +5,7 @@ mod exchange_client;
 mod exchange_responses;
 mod modify;
 mod order;
+mod ids;
 
 pub use actions::*;
 pub use builder::*;
@@ -16,3 +17,5 @@ pub use order::{
     ClientLimit, ClientOrder, ClientOrderRequest, ClientTrigger, MarketCloseParams,
     MarketOrderParams, Order,
 };
+
+pub use ids::{OidOrCloid, OidOrCloidTrait};

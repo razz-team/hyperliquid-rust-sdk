@@ -5,7 +5,7 @@ use alloy::{
 };
 use serde::{Deserialize, Serialize, Serializer};
 
-use super::{cancel::CancelRequestCloid, BuilderInfo};
+use super::{cancel::CancelRequestCloid, BuilderInfo, ids::OidOrCloid};
 use crate::{
     eip712::Eip712,
     exchange::{cancel::CancelRequest, modify::ModifyRequest, order::OrderRequest},
@@ -89,7 +89,7 @@ pub struct BulkCancel {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BulkModify {
-    pub modifies: Vec<ModifyRequest>,
+    pub modifies: Vec<ModifyRequest<OidOrCloid>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
