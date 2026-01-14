@@ -8,18 +8,11 @@ use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
 
 use crate::{
-    helpers::uuid_to_hex_string,
-    info::{
+    BaseUrl, Error, FrontendOpenOrdersResponse, Message, OidOrCloid, OidOrCloidTrait, OrderStatusResponse, ReferralResponse, UserFeesResponse, UserFundingResponse, UserTokenBalanceResponse, helpers::uuid_to_hex_string, info::{
         ActiveAssetDataResponse, CandlesSnapshotResponse, FundingHistoryResponse,
         L2SnapshotResponse, OpenOrdersResponse, OrderInfo, RecentTradesResponse, UserFillsResponse,
         UserStateResponse,
-    },
-    meta::{AssetContext, Meta, SpotMeta, SpotMetaAndAssetCtxs},
-    prelude::*,
-    req::HttpClient,
-    ws::{Subscription, WsManager},
-    BaseUrl, Error, Message, OidOrCloid, OidOrCloidTrait, OrderStatusResponse, ReferralResponse,
-    UserFeesResponse, UserFundingResponse, UserTokenBalanceResponse,
+    }, meta::{AssetContext, Meta, SpotMeta, SpotMetaAndAssetCtxs}, prelude::*, req::HttpClient, ws::{Subscription, WsManager}
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -51,6 +44,9 @@ pub enum InfoRequest {
         user: Address,
     },
     OpenOrders {
+        user: Address,
+    },
+    FrontendOpenOrders {
         user: Address,
     },
     OrderStatus {
@@ -189,6 +185,11 @@ impl InfoClient {
 
     pub async fn open_orders(&self, address: Address) -> Result<Vec<OpenOrdersResponse>> {
         let input = InfoRequest::OpenOrders { user: address };
+        self.send_info_request(input).await
+    }
+
+    pub async fn frontend_open_orders(&self, address: Address) -> Result<Vec<FrontendOpenOrdersResponse>> {
+        let input = InfoRequest::FrontendOpenOrders { user: address };
         self.send_info_request(input).await
     }
 

@@ -46,6 +46,25 @@ pub struct OpenOrdersResponse {
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct FrontendOpenOrdersResponse {
+    pub coin: String,
+    pub is_position_tpsl: bool,
+    pub is_trigger: bool,
+    pub limit_px: String,
+    pub oid: u64,
+    pub order_type: String,
+    pub orig_sz: String,
+    pub reduce_only: bool,
+    pub side: String,
+    pub sz: String,
+    pub timestamp: u64,
+    pub trigger_condition: String,
+    pub trigger_px: String,
+    pub cloid: Option<String>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct UserFillsResponse {
     pub closed_pnl: String,
     pub coin: String,
