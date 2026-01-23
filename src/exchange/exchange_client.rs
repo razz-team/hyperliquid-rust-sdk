@@ -60,6 +60,7 @@ pub enum Actions {
     Cancel(BulkCancel),
     CancelByCloid(BulkCancelCloid),
     BatchModify(BulkModify),
+    Modify(ModifyRequest<OidOrCloid>),
     ApproveAgent(ApproveAgent),
     Withdraw3(Withdraw3),
     SpotUser(SpotUser),
@@ -587,11 +588,22 @@ impl ExchangeClient {
         modify: ClientModifyRequest<impl OidOrCloidTrait>,
         wallet: Option<&PrivateKeySigner>,
     ) -> Result<ExchangeResponseStatus> {
+        let wallet = wallet.unwrap_or(&self.wallet);
+        let timestamp = next_nonce();
 
-        self.bulk_modify(vec![ClientModifyRequest {
+        let transformed_modify = ModifyRequest {
             oid: modify.oid.into(),
-            order: modify.order,
-        }], wallet).await
+            order: modify.order.convert(&self.coin_to_asset)?,
+        };
+
+        let action = Actions::Modify(transformed_modify);
+        let connection_id = action.hash(timestamp, self.vault_address)?;
+
+        let action = serde_json::to_value(&action).map_err(|e| Error::JsonParse(e.to_string()))?;
+        let is_mainnet = self.http_client.is_mainnet();
+        let signature = sign_l1_action(wallet, connection_id, is_mainnet)?;
+
+        self.post(action, signature, timestamp).await
     }
 
     pub async fn bulk_modify(
