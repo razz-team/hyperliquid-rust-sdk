@@ -2,8 +2,8 @@ use std::{thread::sleep, time::Duration};
 
 use alloy::signers::local::PrivateKeySigner;
 use hyperliquid_rust_sdk::{
-    BaseUrl, BuilderInfo, ExchangeClient, ExchangeDataStatus, ExchangeResponseStatus,
-    MarketCloseParams, MarketOrderParams,
+    BaseUrl, BuilderInfo, ExchangeClient, ExchangeDataStatus, ExchangeResponse,
+    ExchangeResponseStatus, MarketCloseParams, MarketOrderParams,
 };
 use log::info;
 
@@ -46,11 +46,12 @@ async fn main() {
         .unwrap();
     info!("Market open order placed: {response:?}");
 
-    let response = match response {
-        ExchangeResponseStatus::Ok(exchange_response) => exchange_response,
+    let data = match response {
+        ExchangeResponseStatus::Ok(ExchangeResponse::Order { data }) => data,
+        ExchangeResponseStatus::Ok(other) => panic!("Unexpected response variant: {other:?}"),
         ExchangeResponseStatus::Err(e) => panic!("Error with exchange response: {e}"),
     };
-    let status = response.data.unwrap().statuses[0].clone();
+    let status = data.unwrap().statuses[0].clone();
     match status {
         ExchangeDataStatus::Filled(order) => info!("Order filled: {order:?}"),
         ExchangeDataStatus::Resting(order) => info!("Order resting: {order:?}"),
@@ -76,11 +77,12 @@ async fn main() {
         .unwrap();
     info!("Market close order placed: {response:?}");
 
-    let response = match response {
-        ExchangeResponseStatus::Ok(exchange_response) => exchange_response,
+    let data = match response {
+        ExchangeResponseStatus::Ok(ExchangeResponse::Order { data }) => data,
+        ExchangeResponseStatus::Ok(other) => panic!("Unexpected response variant: {other:?}"),
         ExchangeResponseStatus::Err(e) => panic!("Error with exchange response: {e}"),
     };
-    let status = response.data.unwrap().statuses[0].clone();
+    let status = data.unwrap().statuses[0].clone();
     match status {
         ExchangeDataStatus::Filled(order) => info!("Close order filled: {order:?}"),
         ExchangeDataStatus::Resting(order) => info!("Close order resting: {order:?}"),

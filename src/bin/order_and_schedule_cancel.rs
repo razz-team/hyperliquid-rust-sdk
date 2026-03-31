@@ -3,7 +3,7 @@ use log::info;
 
 use hyperliquid_rust_sdk::{
     BaseUrl, ClientLimit, ClientOrder, ClientOrderRequest, ExchangeClient, ExchangeDataStatus,
-    ExchangeResponseStatus,
+    ExchangeResponse, ExchangeResponseStatus,
 };
 use std::{thread::sleep, time::Duration};
 
@@ -39,13 +39,17 @@ async fn main() {
     info!("Test order placed: {response:?}");
 
     match response {
-        ExchangeResponseStatus::Ok(exchange_response) => {
-            let status = &exchange_response.data.unwrap().statuses[0];
+        ExchangeResponseStatus::Ok(ExchangeResponse::Order { data }) => {
+            let status = &data.unwrap().statuses[0];
             match status {
                 ExchangeDataStatus::Filled(_) => info!("Order was filled"),
                 ExchangeDataStatus::Resting(_) => info!("Order is resting"),
                 _ => info!("Order status: {status:?}"),
             }
+        }
+        ExchangeResponseStatus::Ok(other) => {
+            info!("Unexpected response variant: {other:?}");
+            return;
         }
         ExchangeResponseStatus::Err(e) => {
             info!("Error placing order: {e}");

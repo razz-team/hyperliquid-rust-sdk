@@ -3,7 +3,7 @@ use std::{thread::sleep, time::Duration};
 use alloy::signers::local::PrivateKeySigner;
 use hyperliquid_rust_sdk::{
     BaseUrl, BuilderInfo, ClientCancelRequest, ClientLimit, ClientOrder, ClientOrderRequest,
-    ExchangeClient, ExchangeDataStatus, ExchangeResponseStatus,
+    ExchangeClient, ExchangeDataStatus, ExchangeResponse, ExchangeResponseStatus,
 };
 use log::info;
 
@@ -48,11 +48,12 @@ async fn main() {
         .unwrap();
     info!("Order placed: {response:?}");
 
-    let response = match response {
-        ExchangeResponseStatus::Ok(exchange_response) => exchange_response,
+    let data = match response {
+        ExchangeResponseStatus::Ok(ExchangeResponse::Order { data }) => data,
+        ExchangeResponseStatus::Ok(other) => panic!("Unexpected response variant: {other:?}"),
         ExchangeResponseStatus::Err(e) => panic!("error with exchange response: {e}"),
     };
-    let status = response.data.unwrap().statuses[0].clone();
+    let status = data.unwrap().statuses[0].clone();
     let oid = match status {
         ExchangeDataStatus::Filled(order) => order.oid,
         ExchangeDataStatus::Resting(order) => order.oid,

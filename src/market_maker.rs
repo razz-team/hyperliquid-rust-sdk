@@ -4,8 +4,8 @@ use tokio::sync::mpsc::unbounded_channel;
 
 use crate::{
     bps_diff, truncate_float, BaseUrl, ClientCancelRequest, ClientLimit, ClientOrder,
-    ClientOrderRequest, ExchangeClient, ExchangeDataStatus, ExchangeResponseStatus, InfoClient,
-    Message, Subscription, UserData, EPSILON,
+    ClientOrderRequest, ExchangeClient, ExchangeDataStatus, ExchangeResponse,
+    ExchangeResponseStatus, InfoClient, Message, Subscription, UserData, EPSILON,
 };
 #[derive(Debug)]
 pub struct MarketMakerRestingOrder {
@@ -154,8 +154,8 @@ impl MarketMaker {
 
         match cancel {
             Ok(cancel) => match cancel {
-                ExchangeResponseStatus::Ok(cancel) => {
-                    if let Some(cancel) = cancel.data {
+                ExchangeResponseStatus::Ok(ExchangeResponse::Cancel { data }) => {
+                    if let Some(cancel) = data {
                         if !cancel.statuses.is_empty() {
                             match cancel.statuses[0].clone() {
                                 ExchangeDataStatus::Success => {
@@ -170,8 +170,11 @@ impl MarketMaker {
                             error!("Exchange data statuses is empty when cancelling: {cancel:?}")
                         }
                     } else {
-                        error!("Exchange response data is empty when cancelling: {cancel:?}")
+                        error!("Exchange response data is empty when cancelling")
                     }
+                }
+                ExchangeResponseStatus::Ok(other) => {
+                    error!("Unexpected exchange response variant when cancelling: {other:?}")
                 }
                 ExchangeResponseStatus::Err(e) => error!("Error with cancelling: {e}"),
             },
@@ -206,8 +209,8 @@ impl MarketMaker {
             .await;
         match order {
             Ok(order) => match order {
-                ExchangeResponseStatus::Ok(order) => {
-                    if let Some(order) = order.data {
+                ExchangeResponseStatus::Ok(ExchangeResponse::Order { data }) => {
+                    if let Some(order) = data {
                         if !order.statuses.is_empty() {
                             match order.statuses[0].clone() {
                                 ExchangeDataStatus::Filled(order) => {
@@ -225,8 +228,11 @@ impl MarketMaker {
                             error!("Exchange data statuses is empty when placing order: {order:?}")
                         }
                     } else {
-                        error!("Exchange response data is empty when placing order: {order:?}")
+                        error!("Exchange response data is empty when placing order")
                     }
+                }
+                ExchangeResponseStatus::Ok(other) => {
+                    error!("Unexpected exchange response variant when placing order: {other:?}")
                 }
                 ExchangeResponseStatus::Err(e) => {
                     error!("Error with placing order: {e}")
