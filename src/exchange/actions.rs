@@ -275,6 +275,30 @@ pub struct ScheduleCancel {
 #[serde(rename_all = "camelCase")]
 pub struct ClaimRewards;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TwapOrder {
+    #[serde(rename = "a", alias = "asset")]
+    pub asset: u32,
+    #[serde(rename = "b", alias = "isBuy")]
+    pub is_buy: bool,
+    #[serde(rename = "s", alias = "sz")]
+    pub sz: String,
+    #[serde(rename = "r", alias = "reduceOnly")]
+    pub reduce_only: bool,
+    #[serde(rename = "m", alias = "minutes")]
+    pub minutes: u32,
+    #[serde(rename = "t", alias = "randomize")]
+    pub randomize: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TwapCancel {
+    #[serde(rename = "a", alias = "asset")]
+    pub asset: u32,
+    #[serde(rename = "t", alias = "twapId")]
+    pub twap_id: u64,
+}
+
 impl Eip712 for ApproveBuilderFee {
     fn domain(&self) -> Eip712Domain {
         eip_712_domain(self.signature_chain_id)

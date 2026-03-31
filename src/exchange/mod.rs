@@ -6,6 +6,7 @@ mod exchange_responses;
 mod modify;
 mod order;
 mod ids;
+mod twap;
 
 pub use actions::*;
 pub use builder::*;
@@ -17,5 +18,6 @@ pub use order::{
     ClientLimit, ClientOrder, ClientOrderRequest, ClientTrigger, MarketCloseParams,
     MarketOrderParams, Order,
 };
+pub use twap::{ClientTwapCancelRequest, ClientTwapRequest};
 
 pub use ids::{OidOrCloid, OidOrCloidTrait};

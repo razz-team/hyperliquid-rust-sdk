@@ -12,9 +12,9 @@ use crate::{
     BaseUrl, BulkCancelCloid, ClassTransfer, Error, ExchangeResponseStatus, SpotSend, SpotUser, VaultTransfer, Withdraw3, exchange::{
         BuilderInfo, ClientCancelRequest, ClientLimit, ClientOrder, ClientOrderRequest, actions::{
             ApproveAgent, ApproveBuilderFee, BulkCancel, BulkModify, BulkOrder, ClaimRewards,
-            EvmUserModify, ScheduleCancel, SendAsset, SetReferrer, UpdateIsolatedMargin,
-            UpdateLeverage, UsdSend,
-        }, cancel::{CancelRequest, CancelRequestCloid, ClientCancelRequestCloid}, ids::{OidOrCloid, OidOrCloidTrait}, modify::{ClientModifyRequest, ModifyRequest}, order::{MarketCloseParams, MarketOrderParams}
+            EvmUserModify, ScheduleCancel, SendAsset, SetReferrer, TwapCancel, TwapOrder,
+            UpdateIsolatedMargin, UpdateLeverage, UsdSend,
+        }, cancel::{CancelRequest, CancelRequestCloid, ClientCancelRequestCloid}, ids::{OidOrCloid, OidOrCloidTrait}, modify::{ClientModifyRequest, ModifyRequest}, order::{MarketCloseParams, MarketOrderParams}, twap::{ClientTwapCancelRequest, ClientTwapRequest}
     }, helpers::{next_nonce, uuid_to_hex_string}, info::info_client::InfoClient, meta::Meta, prelude::*, req::HttpClient, signature::{sign_l1_action, sign_typed_data}
 };
 
@@ -72,6 +72,10 @@ pub enum Actions {
     EvmUserModify(EvmUserModify),
     ScheduleCancel(ScheduleCancel),
     ClaimRewards(ClaimRewards),
+    TwapOrder {
+        twap: TwapOrder,
+    },
+    TwapCancel(TwapCancel),
 }
 
 impl Actions {
@@ -856,6 +860,43 @@ impl ExchangeClient {
         self.post(action, signature, timestamp).await
     }
 
+    pub async fn twap_order(
+        &self,
+        req: ClientTwapRequest,
+        wallet: Option<&PrivateKeySigner>,
+    ) -> Result<ExchangeResponseStatus> {
+        let &asset = self
+            .coin_to_asset
+            .get(&req.asset)
+            .ok_or(Error::AssetNotFound)?;
+
+        let action = Actions::TwapOrder {
+            twap: TwapOrder {
+                asset,
+                is_buy: req.is_buy,
+                sz: req.sz_string(),
+                reduce_only: req.reduce_only,
+                minutes: req.duration_minutes,
+                randomize: req.randomize,
+            },
+        };
+        self.post_action(action, wallet).await
+    }
+
+    pub async fn twap_cancel(
+        &self,
+        req: ClientTwapCancelRequest,
+        wallet: Option<&PrivateKeySigner>,
+    ) -> Result<ExchangeResponseStatus> {
+        let &asset = self
+            .coin_to_asset
+            .get(&req.asset)
+            .ok_or(Error::AssetNotFound)?;
+
+        let action = Actions::TwapCancel(TwapCancel { asset, twap_id: req.twap_id });
+        self.post_action(action, wallet).await
+    }
+
     pub async fn schedule_cancel(
         &self,
         time: Option<u64>,
@@ -1127,6 +1168,59 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn test_twap_order_action_hashing() -> Result<()> {
+        let wallet = get_wallet()?;
+        let action = Actions::TwapOrder {
+            twap: TwapOrder {
+                asset: 1,
+                is_buy: true,
+                sz: "3.5".to_string(),
+                reduce_only: false,
+                minutes: 30,
+                randomize: true,
+            },
+        };
+        let connection_id = action.hash(1583838, None)?;
+
+        let signature = sign_l1_action(&wallet, connection_id, true)?;
+        // Verify it produces a valid signature (not empty)
+        assert!(!signature.to_string().is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_twap_order_serialization() {
+        let action = Actions::TwapOrder {
+            twap: TwapOrder {
+                asset: 1,
+                is_buy: true,
+                sz: "3.5".to_string(),
+                reduce_only: false,
+                minutes: 30,
+                randomize: true,
+            },
+        };
+        let json = serde_json::to_value(&action).unwrap();
+        assert_eq!(json["type"], "twapOrder");
+        assert_eq!(json["twap"]["a"], 1);
+        assert_eq!(json["twap"]["b"], true);
+        assert_eq!(json["twap"]["s"], "3.5");
+        assert_eq!(json["twap"]["r"], false);
+        assert_eq!(json["twap"]["m"], 30);
+        assert_eq!(json["twap"]["t"], true);
+    }
+
+    #[test]
+    fn test_twap_cancel_serialization() {
+        let action = Actions::TwapCancel(TwapCancel { asset: 1, twap_id: 77738308 });
+        let json = serde_json::to_value(&action).unwrap();
+        assert_eq!(json["type"], "twapCancel");
+        assert_eq!(json["a"], 1);
+        assert_eq!(json["t"], 77738308);
     }
 
     #[test]
