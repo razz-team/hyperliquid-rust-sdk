@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct RestingOrder {
@@ -50,7 +50,7 @@ pub struct TwapDataStatus {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
-pub enum ExchangeResponse {
+pub enum KnownExchangeResponse {
     #[serde(rename = "order")]
     Order { data: Option<ExchangeDataStatuses> },
     #[serde(rename = "cancel")]
@@ -59,6 +59,33 @@ pub enum ExchangeResponse {
     TwapOrder { data: Option<TwapDataStatus> },
     #[serde(rename = "twapCancel")]
     TwapCancel { data: Option<TwapDataStatus> },
+}
+
+#[derive(Debug, Clone)]
+pub enum ExchangeResponse {
+    Order { data: Option<ExchangeDataStatuses> },
+    Cancel { data: Option<ExchangeDataStatuses> },
+    TwapOrder { data: Option<TwapDataStatus> },
+    TwapCancel { data: Option<TwapDataStatus> },
+    Unknown(serde_json::Value),
+}
+
+impl<'de> Deserialize<'de> for ExchangeResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        match serde_json::from_value::<KnownExchangeResponse>(value.clone()) {
+            Ok(known) => Ok(match known {
+                KnownExchangeResponse::Order { data } => ExchangeResponse::Order { data },
+                KnownExchangeResponse::Cancel { data } => ExchangeResponse::Cancel { data },
+                KnownExchangeResponse::TwapOrder { data } => ExchangeResponse::TwapOrder { data },
+                KnownExchangeResponse::TwapCancel { data } => ExchangeResponse::TwapCancel { data },
+            }),
+            Err(_) => Ok(ExchangeResponse::Unknown(value)),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -126,6 +153,19 @@ mod tests {
                 assert!(matches!(&statuses[0], ExchangeDataStatus::Resting(o) if o.oid == 123));
             }
             _ => panic!("expected Order"),
+        }
+    }
+
+    #[test]
+    fn deserialize_unknown_response() {
+        let json = r#"{"status":"ok","response":{"type":"someNewType","data":{"foo":"bar"}}}"#;
+        let resp: ExchangeResponseStatus = serde_json::from_str(json).unwrap();
+        match resp {
+            ExchangeResponseStatus::Ok(ExchangeResponse::Unknown(value)) => {
+                assert_eq!(value["type"], "someNewType");
+                assert_eq!(value["data"]["foo"], "bar");
+            }
+            _ => panic!("expected Unknown"),
         }
     }
 
